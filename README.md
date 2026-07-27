@@ -7,9 +7,16 @@ A reference document that explains the XML syntax for XFA forms in general is fo
 You will also find in the `decos/` folder some premade, 'unlocked' AF decoration forms that can be used 
 for drafting decos.
 
-## xfa-extract.py
+## xfa-extract-all.py
 
 A python script to extract XFA data from a pdf and save them as XML files. 
+
+## xfa-extract-data.py
+
+A python script that extracts only the `datasets` XFA packet from a pdf (the actual form
+data) and saves it as `<NomePdf>.xml`, ready to be plugged into Adobe LiveCycle Designer as
+a sample data file. Unlike `xfa-extract-all.py`, the output has `<xfa:data>` as its root element
+(the `<xfa:datasets>` wrapper is stripped).
 
 ## deco-unlock.py
 
