@@ -14,7 +14,7 @@ USAGE:
     python {os.path.basename(sys.argv[0])} 'PATH_TO_PDF.pdf' [... MORE_PDFS.pdf ]
 
         Estrae solo il packet XFA 'datasets' da ciascun PDF e lo salva come
-        '<NomePdf>.xml' nella stessa cartella di questo script, nel formato
+        '<NomePdf>.xml' nella stessa cartella del PDF di origine, nel formato
         "sample data file" (radice <xfa:data>, senza il wrapper <xfa:datasets>)
         pronto per essere agganciato in Adobe LiveCycle Designer.
 
@@ -72,8 +72,6 @@ elif re.match(r'(^-+h)', sys.argv[1]):
 else:
     fileNames = sys.argv[1:]
 
-scriptDir = os.path.dirname(os.path.abspath(__file__))
-
 processed = []
 errors = []
 
@@ -85,8 +83,9 @@ for fileName in fileNames:
             rawDatasets = xfaDict['datasets']
             dataXml = '<?xml version="1.0" encoding="UTF-8"?>\n' + unwrap_datasets(rawDatasets)
 
+            sourceDir = os.path.dirname(os.path.abspath(fileName))
             baseName = re.sub(r'\.pdf$', '', os.path.basename(fileName), flags=re.IGNORECASE)
-            outFile = os.path.join(scriptDir, f'{baseName}.xml')
+            outFile = os.path.join(sourceDir, f'{baseName}.xml')
 
             with open(outFile, 'w', encoding='utf-8') as f:
                 f.write(dataXml)
