@@ -4,11 +4,11 @@ Read this file first when resuming work. It records where the project stands,
 what was decided and why, and what to do next. Update it at the end of every
 phase, and before stopping for any reason.
 
-- **Branch:** `feature/desktop-app` (from `master`)
+- **Branch:** merged into `master`; `feature/desktop-app` kept as the phase history
 - **Remote:** https://github.com/ManasseDettoMana/pdf-xfa-tools
-- **Last updated:** 2026-07-30, end of Phase 5
-- **Status:** Phases 1-5 complete, 104 tests green, `dist\XfaStudio.exe` builds
-  and launches. Phase 6 (docs, CI, PR) in progress.
+- **Last updated:** 2026-07-30, all six phases merged to `master`
+- **Status:** Phases 1-6 complete. 104 tests green, 1 skipped, ruff clean,
+  `dist\XfaStudio.exe` builds (98.5 MB) and launches.
 
 ---
 
@@ -45,10 +45,8 @@ GitHub. No emojis anywhere. Best practices throughout.
       misses strings, so `tr()` and the theme went in from the first widget.
       Remaining for a later pass: XML preview pane, toast notifications.
 - [x] **Phase 5 - packaging** (PyInstaller one-file .exe, icon, build script)
-- [ ] **Phase 6 - docs, CI, release** (README and ARCHITECTURE written, CI and
-      release workflows written, PR still to open)
-- [ ] **Phase 5 - packaging** (PyInstaller one-file .exe)
-- [ ] **Phase 6 - docs, CI, release** (README, Actions, PR)
+- [x] **Phase 6 - docs, CI, release** (README, ARCHITECTURE, CI and release
+      workflows, merged to `master`)
 
 ## What exists after Phase 1
 
@@ -166,9 +164,8 @@ through markitdown, none of which any converter uses.
 
 ## Next step
 
-Finish Phase 6: open the pull request against `master`.
-
-Then, in rough priority order, the things deliberately left out so far:
+The six planned phases are done and on `master`. In rough priority order, the
+things deliberately left out so far:
 
 1. **XML preview pane** in the result panel, with syntax highlighting. The
    result panel currently lists output file names only.
