@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+.pytest_cache/
+.ruff_cache/
+.venv/
+venv/
+env/
+
+# Build artifacts. Note build/ itself is tracked: it holds the spec, the build
+# script, the icon and its generator.
+build/_work/
+build/dist/
+dist/
+*.manifest
+
+# Application settings (per-user, never committed)
+settings.json
+
+# Extraction output produced while testing against decos/
+decos/*.xml
+decos/*_unlocked/
+decos/*_updated.pdf
+
+# OS / editor
+Thumbs.db
+desktop.ini
+.DS_Store
+.vscode/
+.idea/

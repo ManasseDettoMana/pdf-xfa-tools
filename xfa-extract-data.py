@@ -1,105 +1,38 @@
-import pikepdf
+"""Compatibility shim - superseded by XFA Studio.
+
+Kept so existing habits and shortcuts keep working:
+
+    python xfa-extract-data.py FILE.pdf [MORE.pdf ...]
+
+Run without arguments (for example by double-clicking) it now opens the full
+application instead of a bare file picker.
+
+The equivalent modern commands are::
+
+    python -m xfatools                       # the GUI
+    python -m xfatools.cli extract FILE.pdf  # the CLI
+"""
+
 import sys
-import os
-import re
-import tkinter as tk
-from tkinter import filedialog, messagebox
-from xfaTools import XfaObj
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 
-def show_help():
-    print(f'''
-USAGE:
+def main() -> int:
+    if len(sys.argv) == 1:
+        from xfatools.__main__ import main as gui_main
 
-    python {os.path.basename(sys.argv[0])} 'PATH_TO_PDF.pdf' [... MORE_PDFS.pdf ]
+        return gui_main()
 
-        Estrae solo il packet XFA 'datasets' da ciascun PDF e lo salva come
-        '<NomePdf>.xml' nella stessa cartella del PDF di origine, nel formato
-        "sample data file" (radice <xfa:data>, senza il wrapper <xfa:datasets>)
-        pronto per essere agganciato in Adobe LiveCycle Designer.
+    from xfatools.cli import main as cli_main
 
-    Avviato senza argomenti (es. doppio click) si apre una finestra per scegliere i PDF.
-    ''')
-
-
-def pick_files_via_gui():
-    root = tk.Tk()
-    root.withdraw()
-    paths = filedialog.askopenfilenames(
-        title='Seleziona uno o più PDF da analizzare',
-        filetypes=[('PDF files', '*.pdf')]
+    print(
+        "Nota: questo script e' deprecato, usa 'python -m xfatools.cli extract'.",
+        file=sys.stderr,
     )
-    root.destroy()
-    return list(paths)
+    return cli_main(["extract", *sys.argv[1:]])
 
 
-def unwrap_datasets(raw):
-    '''
-    Converte il packet XFA 'datasets' (radice <xfa:datasets><xfa:data>...</xfa:data></xfa:datasets>)
-    nel formato "sample data file" con radice <xfa:data>, spostando l'attributo xmlns:xfa
-    sul tag <xfa:data>. Trasformazione puramente testuale per non alterare whitespace/attributi
-    del resto del documento.
-    '''
-    head_match = re.match(
-        r'^<xfa:datasets\s+([^>]*?)\s*\n?>\s*<xfa:data(\s[^>]*)?\n?>',
-        raw
-    )
-    tail_match = re.search(r'</xfa:data\s*\n?>\s*</xfa:datasets\s*\n?>\s*$', raw)
-
-    if not head_match or not tail_match:
-        raise ValueError("Struttura del packet 'datasets' inattesa: impossibile rimuovere il wrapper <xfa:datasets>.")
-
-    xmlns_attrs = head_match.group(1).strip()
-    data_attrs = (head_match.group(2) or '').strip()
-    new_head = f'<xfa:data {xmlns_attrs}{(" " + data_attrs) if data_attrs else ""}\n>'
-
-    body = raw[head_match.end():tail_match.start()]
-    new_tail = '</xfa:data\n>'
-
-    return new_head + body + new_tail
-
-
-launched_via_gui = False
-
-if len(sys.argv) == 1:
-    launched_via_gui = True
-    fileNames = pick_files_via_gui()
-    if not fileNames:
-        quit()
-elif re.match(r'(^-+h)', sys.argv[1]):
-    show_help()
-    quit()
-else:
-    fileNames = sys.argv[1:]
-
-processed = []
-errors = []
-
-for fileName in fileNames:
-    try:
-        with pikepdf.Pdf.open(fileName) as pdfData:
-            xfaDict = XfaObj(pdfData)
-
-            rawDatasets = xfaDict['datasets']
-            dataXml = '<?xml version="1.0" encoding="UTF-8"?>\n' + unwrap_datasets(rawDatasets)
-
-            sourceDir = os.path.dirname(os.path.abspath(fileName))
-            baseName = re.sub(r'\.pdf$', '', os.path.basename(fileName), flags=re.IGNORECASE)
-            outFile = os.path.join(sourceDir, f'{baseName}.xml')
-
-            with open(outFile, 'w', encoding='utf-8') as f:
-                f.write(dataXml)
-
-            processed.append((fileName, outFile))
-    except Exception as e:
-        errors.append((fileName, str(e)))
-        if not launched_via_gui:
-            raise
-
-if launched_via_gui:
-    lines = [f'- {os.path.basename(f)} -> {out}' for f, out in processed]
-    if errors:
-        lines.append('')
-        lines.append('Errori:')
-        lines += [f'- {os.path.basename(f)}: {err}' for f, err in errors]
-    messagebox.showinfo('Estrazione dati XFA completata', '\n'.join(lines) if lines else 'Nessun file elaborato.')
+if __name__ == "__main__":
+    raise SystemExit(main())

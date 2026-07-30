@@ -1,0 +1,57 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-dev.txt
+
+      - name: Build the executable
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: .\build\build.ps1
+        shell: pwsh
+
+      - name: Smoke-test the executable
+        # The build machine has Python, so this cannot prove independence from it.
+        # It does prove the bundle is not missing a module: a broken freeze fails
+        # here rather than on a colleague's machine.
+        run: |
+          if (-not (Test-Path dist\XfaStudio.exe)) { throw 'XfaStudio.exe non prodotto' }
+          $size = (Get-Item dist\XfaStudio.exe).Length / 1MB
+          Write-Host ("Dimensione: {0:N1} MB" -f $size)
+          if ($size -lt 20) { throw 'Eseguibile sospettosamente piccolo' }
+        shell: pwsh
+
+      - name: Upload as a workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: XfaStudio-windows
+          path: dist/XfaStudio.exe
+          retention-days: 30
+
+      - name: Attach to the release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/XfaStudio.exe
+          generate_release_notes: true

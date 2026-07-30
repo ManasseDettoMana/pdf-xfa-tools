@@ -1,90 +1,39 @@
-import pikepdf
+"""Compatibility shim - superseded by XFA Studio.
+
+Kept so existing habits and shortcuts keep working:
+
+    python deco-unlock.py FILE.pdf [MORE.pdf ...]
+
+Behaviour note: the unlocked PDF is now written next to the source file rather
+than into the current working directory, matching every other operation in the
+toolkit.
+
+The equivalent modern commands are::
+
+    python -m xfatools                      # the GUI
+    python -m xfatools.cli unlock FILE.pdf  # the CLI
+"""
+
 import sys
-import os
-import re
-from xfaTools import XfaObj
-from bs4 import BeautifulSoup
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 
-def soupCopy(soup):
-    return BeautifulSoup(str(soup),'xml').findChild()
+def main() -> int:
+    if len(sys.argv) == 1:
+        from xfatools.__main__ import main as gui_main
 
-if(len(sys.argv) == 1 or re.match(r'(^-+h)',sys.argv[1]) ):
-    print(f'''
-USAGE: 
+        return gui_main()
 
-    python {os.path.basename(sys.argv[0])} 'PATH_TO_PDF.pdf' [... MORE_PDFS.pdf ]
-  
-        Output will be saved to PATH_TO_PDF_unlocked.pdf in the current working directory
-    ''')
-    quit()
+    from xfatools.cli import main as cli_main
 
-fileNames = sys.argv
-# starting from 1 because the 0th arg is the file name of this script
-for fileName in fileNames[1:]:
-    with pikepdf.Pdf.open(fileName) as pdfData:
-        xfaDict = XfaObj(pdfData)
-
-        templateSoup = BeautifulSoup(xfaDict['template'],'xml')
-
-        # shifting the radio button controls to a nicer spot.
-        yOffset = 0
-        for tag in templateSoup.find_all('exclGroup'):
-            tag['x'] = "0mm" 
-            tag['y'] = f'{yOffset}mm'
-            yOffset += 20
-
-            tag['access'] = 'open'
-            tag['presence'] = 'visible'
-        
+    print(
+        "Nota: questo script e' deprecato, usa 'python -m xfatools.cli unlock'.",
+        file=sys.stderr,
+    )
+    return cli_main(["unlock", *sys.argv[1:]])
 
 
-        # tags to check for personal data that should be deleted on conversion
-        personalDataTagRegex = r'(Narrative)|(MemberFullName)|(Sign.*\d+)'
-        personalDataTags = []
-        
-        #copy the event/script that hides the various font size boxes, and change the copy to trigger on mouse clicks
-        newEvent = soupCopy(templateSoup.find('event'))
-        newEvent['activity'] = 'click'
-        
-        for tag in templateSoup.find_all('field'):
-            # check to see if the field should be marked for data clearing later
-            if(tag.find('textEdit')):
-                if(re.match(personalDataTagRegex,tag['name'])):
-                    personalDataTags.append(tag['name'])
-            if(tag.find('textEdit')):
-                text = tag.find('textEdit')
-                text['vScrollPolicy'] = 'auto'
-            # make the field visible and editable
-            tag['access'] = 'open'
-            tag['presence'] = 'visible'
-            # add an event listener to trigger on mouse click
-            tag.append(soupCopy(newEvent))
-
-            # shifting some remaining controls to nicer spot
-            if(tag['name'] == "PreviewGraphic" or tag['name'] == 'PrintGraphic'):
-                tag['x'] = "0mm" 
-                tag['y'] = f'{yOffset}mm'
-                yOffset += 5
-
-        # editing the form input data and clearing any personal information    
-        dataSoup = BeautifulSoup(xfaDict['datasets'],'xml')
-        for tagName in personalDataTags:
-            tag = dataSoup.find(tagName)
-            if(tag): 
-                pass
-                # clear out any data in the tag
-                tag.contents = []
-        
-        # Applying XML changes to the actual PDF
-        ## findchild() hotfix is needed to omit <?xml version=...> tag at beginning of document
-        xfaDict['template'] = str(templateSoup.findChild())
-        xfaDict['datasets'] = str(dataSoup.findChild())
-
-        # Saving to disk
-        newFileName = re.sub(r'\.pdf$', '', os.path.basename(fileName)) + '_unlocked.pdf'
-        pdfData.save(newFileName)
-        
-
-
-
+if __name__ == "__main__":
+    raise SystemExit(main())
