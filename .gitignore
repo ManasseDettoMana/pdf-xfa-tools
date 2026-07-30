@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+.pytest_cache/
+.ruff_cache/
+.venv/
+venv/
+env/
+
+# Build artifacts
+build/dist/
+dist/
+*.manifest
+
+# Application settings (per-user, never committed)
+settings.json
+
+# Extraction output produced while testing against decos/
+decos/*.xml
+decos/*_unlocked/
+decos/*_updated.pdf
+
+# OS / editor
+Thumbs.db
+desktop.ini
+.DS_Store
+.vscode/
+.idea/

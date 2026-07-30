@@ -1,80 +1,38 @@
-import pikepdf
+"""Compatibility shim - superseded by XFA Studio.
+
+Kept so existing habits and shortcuts keep working:
+
+    python xfa-extract-all.py FILE.pdf [MORE.pdf ...]
+
+Run without arguments (for example by double-clicking) it now opens the full
+application instead of a bare file picker.
+
+The equivalent modern commands are::
+
+    python -m xfatools                           # the GUI
+    python -m xfatools.cli extract-all FILE.pdf  # the CLI
+"""
+
 import sys
-import os
-import re
-import tkinter as tk
-from tkinter import filedialog, messagebox
-from xfaTools import XfaObj
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 
-def show_help():
-    print(f'''
-USAGE:
+def main() -> int:
+    if len(sys.argv) == 1:
+        from xfatools.__main__ import main as gui_main
 
-    python {os.path.basename(sys.argv[0])} 'PATH_TO_PDF.pdf' [... MORE_PDFS.pdf ]
+        return gui_main()
 
-        Output will be saved to a folder next to each PDF, named after the PDF.
+    from xfatools.cli import main as cli_main
 
-    Avviato senza argomenti (es. doppio click) si apre una finestra per scegliere i PDF.
-    ''')
-
-
-def pick_files_via_gui():
-    root = tk.Tk()
-    root.withdraw()
-    paths = filedialog.askopenfilenames(
-        title='Seleziona uno o più PDF da analizzare',
-        filetypes=[('PDF files', '*.pdf')]
+    print(
+        "Nota: questo script e' deprecato, usa 'python -m xfatools.cli extract-all'.",
+        file=sys.stderr,
     )
-    root.destroy()
-    return list(paths)
+    return cli_main(["extract-all", *sys.argv[1:]])
 
 
-launched_via_gui = False
-
-if len(sys.argv) == 1:
-    launched_via_gui = True
-    fileNames = pick_files_via_gui()
-    if not fileNames:
-        quit()
-elif re.match(r'(^-+h)', sys.argv[1]):
-    show_help()
-    quit()
-else:
-    fileNames = sys.argv[1:]
-
-processed = []
-errors = []
-
-for fileName in fileNames:
-    try:
-        with pikepdf.Pdf.open(fileName) as pdfData:
-            xfaDict = XfaObj(pdfData)
-
-            sourceDir = os.path.dirname(os.path.abspath(fileName))
-            folderName = re.sub(r'\.pdf$', '', os.path.basename(fileName))
-            outDir = os.path.join(sourceDir, folderName)
-
-            os.makedirs(outDir, exist_ok=True)
-
-            for key in xfaDict.keys():
-                outFile = re.sub(r'[<>: ]', '', key)
-                outFile = re.sub('/', 'END', outFile)
-                fullPath = os.path.join(outDir, f'{outFile}.xml')
-                with open(fullPath, 'w', encoding="utf-8") as f:
-                    data = xfaDict[key]
-                    f.write(data)
-
-            processed.append((fileName, outDir))
-    except Exception as e:
-        errors.append((fileName, str(e)))
-        if not launched_via_gui:
-            raise
-
-if launched_via_gui:
-    lines = [f'- {os.path.basename(f)} -> {d}' for f, d in processed]
-    if errors:
-        lines.append('')
-        lines.append('Errori:')
-        lines += [f'- {os.path.basename(f)}: {err}' for f, err in errors]
-    messagebox.showinfo('Estrazione XFA completata', '\n'.join(lines) if lines else 'Nessun file elaborato.')
+if __name__ == "__main__":
+    raise SystemExit(main())

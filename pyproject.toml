@@ -1,0 +1,32 @@
+[project]
+name = "xfatools"
+version = "2.0.0"
+description = "XFA Studio - desktop toolkit for extracting XML from PDF forms and converting files offline"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "ManasseDettoMana" }]
+license = { text = "MIT" }
+
+[project.scripts]
+xfatools = "xfatools.cli:main"
+
+[project.gui-scripts]
+xfa-studio = "xfatools.__main__:main"
+
+[tool.setuptools.packages.find]
+include = ["xfatools*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "requires_engine: test needs an external engine (LibreOffice, Tesseract, Word COM)",
+    "gui: test needs a Qt application instance",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B"]
+ignore = ["E501"]

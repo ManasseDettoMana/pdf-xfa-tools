@@ -1,0 +1,30 @@
+# Core runtime dependencies for XFA Studio.
+# Everything here is pure-Python / wheel-installable: no external engine required.
+
+# --- GUI ---
+PySide6>=6.6
+
+# --- PDF core ---
+pikepdf>=8.0          # XFA packet read/write (the heart of the XFA tooling)
+pypdf>=4.0            # AcroForm field walking
+pypdfium2>=4.0        # page rasterisation (PDF -> image, OCR input)
+pdfplumber>=0.11      # text + layout extraction with bounding boxes
+
+# --- XML / HTML ---
+lxml>=5.0             # XML validation and pretty-printing
+beautifulsoup4>=4.12  # deco-unlock template rewriting
+
+# --- Images ---
+Pillow>=10.0
+
+# --- Documents ---
+openpyxl>=3.1         # xlsx
+xlsxwriter>=3.1       # xlsx writing
+python-pptx>=1.0      # pptx
+mammoth>=1.6          # docx -> html
+markdown>=3.5         # md -> html
+reportlab>=4.0        # pure-Python PDF writing (fallback renderer)
+
+# --- Optional extras (the app degrades gracefully without them) ---
+# pytesseract>=0.3.10 # OCR; also needs the Tesseract binary installed
+# pillow-heif>=0.15   # HEIC/HEIF image support
