@@ -6,8 +6,8 @@ phase, and before stopping for any reason.
 
 - **Branch:** `feature/desktop-app` (from `master`)
 - **Remote:** https://github.com/ManasseDettoMana/pdf-xfa-tools
-- **Last updated:** 2026-07-30, end of Phase 1
-- **Status:** Phase 1 complete. Phase 2 (conversion engine) is next.
+- **Last updated:** 2026-07-30, end of Phase 2
+- **Status:** Phases 1 and 2 complete, 72 tests green. Phase 3 (GUI shell) is next.
 
 ---
 
@@ -37,7 +37,7 @@ GitHub. No emojis anywhere. Best practices throughout.
 ## Phase status
 
 - [x] **Phase 1 - skeleton and core extraction**
-- [ ] **Phase 2 - conversion engine** (registry, images, pdfops, documents)
+- [x] **Phase 2 - conversion engine** (registry, images, pdfops, documents)
 - [ ] **Phase 3 - GUI shell** (drop zone, queue, workers, settings)
 - [ ] **Phase 4 - theme, i18n, polish** (QSS, live IT/EN, diagnostics, badges)
 - [ ] **Phase 5 - packaging** (PyInstaller one-file .exe)
@@ -66,6 +66,31 @@ Verified on this machine:
   text reconstruction with the truncation warning.
 - Inject round-trip: edit `MemberFullName`, write, re-extract, value present.
 
+## What exists after Phase 2
+
+25 converters in one table (`core/registry.py`), driving the GUI dropdown, the
+CLI and the job runner alike. Adding a conversion means adding one `Converter`
+entry - no UI change.
+
+- `core/images.py` - Pillow conversions handling the cases a naive
+  `open().save()` gets wrong: alpha flattened to a real background instead of
+  black, EXIF orientation, CMYK, palette images, ICO clamped to 256 px.
+- `core/pdfops.py` - rasterise (pypdfium2, no external binary), merge, split,
+  rotate, lossless compress, extract a page range.
+- `core/documents.py` - office to PDF through LibreOffice, then Word COM, then a
+  ReportLab reflow; PDF to text/Markdown/CSV; spreadsheet to CSV.
+- `cli.py` gains `convert` and `formats`.
+
+Two design corrections made while building this phase, both worth keeping:
+
+1. `targets_for()` originally hid every same-extension conversion to avoid
+   offering "PNG to PNG". That silently removed rotate, compress, unlock and
+   extract-pages, which are legitimately PDF to PDF. The rule now only applies
+   to the image category.
+2. Extraction provenance first travelled through a module-level dict keyed by
+   path. That is shared mutable state and would race once several worker threads
+   run. It now rides on `JobContext.metadata`, which is per job.
+
 ## Environment notes
 
 - Python 3.13.14, PySide6 6.11.1.
@@ -77,9 +102,19 @@ Verified on this machine:
 
 ## Next step
 
-Start Phase 2: `core/registry.py` first, since the GUI's format dropdown, the
-greying-out of unavailable conversions and the CLI `convert` subcommand are all
-driven by it. Then `images.py`, `pdfops.py`, `documents.py`.
+Start Phase 3, the GUI shell:
+
+1. `gui/workers.py` - a `QRunnable` per job wrapping `registry.run_job`, adapting
+   `JobContext` callbacks to Qt signals. Concurrency `min(4, cpu_count)`.
+2. `gui/main_window.py` - header, drop zone, queue table, options panel, footer.
+3. `gui/widgets/dropzone.py` - accepts files and folders, recursive, filtered by
+   `registry.supported_input_exts()`, deduped.
+4. `gui/settings.py` - JSON in `%APPDATA%/xfatools/`.
+
+A mixed selection (say a PDF and a PNG) has no shared conversion, so the queue
+must hold a target format **per row**, defaulted from each file's type, rather
+than one global dropdown. `registry.common_targets()` exists for the case where
+the user multi-selects rows and sets them at once.
 
 ## Open questions
 

@@ -120,29 +120,35 @@ def tesseract_languages() -> tuple[str, ...]:
 
 # --- Microsoft Word (COM) ----------------------------------------------------
 
-WORD_HINT = "Microsoft Word non rilevato: usa LibreOffice come alternativa."
+WORD_HINT = (
+    "Microsoft Word utilizzabile via COM non rilevato (servono Word installato e "
+    "'pip install pywin32'). In alternativa installa LibreOffice."
+)
 
 
 @lru_cache(maxsize=1)
 def has_word_com() -> bool:
-    """True when Word can be driven through COM (Windows + Office installed).
+    """True when Word can actually be driven through COM.
+
+    Needs three things at once: Windows, an installed Word registering the
+    ``Word.Application`` COM class, and ``pywin32`` to talk to it.  Checking only
+    the registry would report success on a machine where the conversion then
+    fails with ``ImportError``.
 
     Only ever used as a *fallback* for office-to-PDF conversion: it exists on the
     author's machine but must never be assumed present anywhere else.
     """
     if sys.platform != "win32":
         return False
+    if not _has_module("win32com"):
+        return False
     try:
         import winreg
-    except ImportError:  # pragma: no cover - non-Windows
+
+        with winreg.OpenKey(winreg.HKEY_CLASSES_ROOT, r"Word.Application\CurVer"):
+            return True
+    except (ImportError, OSError):
         return False
-    for root in (winreg.HKEY_CLASSES_ROOT,):
-        try:
-            with winreg.OpenKey(root, r"Word.Application\CurVer"):
-                return True
-        except OSError:
-            continue
-    return False
 
 
 # --- Python extras -----------------------------------------------------------

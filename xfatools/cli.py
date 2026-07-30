@@ -12,7 +12,7 @@ import sys
 from pathlib import Path
 
 from . import APP_NAME, __version__
-from .core import engines
+from .core import engines, registry
 from .core.errors import XfaToolsError
 from .core.extract import (
     AUTO_ORDER,
@@ -22,7 +22,7 @@ from .core.extract import (
     extract_xml,
 )
 from .core.inject import WRITABLE_PACKETS, inject_xml
-from .core.job import JobContext
+from .core.job import Job, JobContext
 from .core.probe import probe_pdf
 from .core.unlock import unlock_pdf
 
@@ -160,6 +160,89 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_convert(args: argparse.Namespace) -> int:
+    ctx = _progress_to_stderr(args.quiet)
+    converter = registry.get(args.to)
+
+    if not converter.available:
+        print(f"ERRORE: '{converter.label}' non disponibile.", file=sys.stderr)
+        print(f"        {converter.unavailable_reason}", file=sys.stderr)
+        return 1
+
+    options = dict(_parse_option_pairs(args.option))
+    failures = 0
+
+    for raw in args.files:
+        path = Path(raw)
+        job = Job(
+            source=path,
+            target_format=converter.id,
+            options=options,
+            output_dir=Path(args.output) if args.output else None,
+        )
+        result = registry.run_job(job, ctx)
+
+        if result.ok:
+            badge = f"[{result.badge}] " if result.badge else ""
+            targets = ", ".join(str(p) for p in result.outputs[:3])
+            more = f" (+{len(result.outputs) - 3})" if len(result.outputs) > 3 else ""
+            print(f"{path.name}  {badge}->  {targets}{more}")
+            for warning in result.warnings:
+                print(f"        avviso: {warning}", file=sys.stderr)
+        else:
+            print(f"ERRORE  {path.name}: {result.message}", file=sys.stderr)
+            if result.hint:
+                print(f"        {result.hint}", file=sys.stderr)
+            failures += 1
+
+    return 1 if failures else 0
+
+
+def _parse_option_pairs(pairs: list[str] | None) -> dict[str, object]:
+    """Turn ``--option dpi=300`` arguments into a typed options dict."""
+    options: dict[str, object] = {}
+    for pair in pairs or []:
+        if "=" not in pair:
+            raise XfaToolsError(f"Opzione non valida: '{pair}'. Usa chiave=valore.")
+        key, _, value = pair.partition("=")
+        options[key.strip()] = _coerce(value.strip())
+    return options
+
+
+def _coerce(value: str) -> object:
+    if value.lower() in ("true", "yes", "si"):
+        return True
+    if value.lower() in ("false", "no"):
+        return False
+    try:
+        return int(value)
+    except ValueError:
+        return value
+
+
+def cmd_formats(args: argparse.Namespace) -> int:
+    if args.files:
+        converters = registry.common_targets(args.files)
+        if not converters:
+            print("Nessuna conversione applicabile a tutti i file indicati.", file=sys.stderr)
+            return 1
+    else:
+        converters = list(registry.CONVERTERS)
+
+    for category, group in registry.categories_of(converters):
+        print(f"\n{registry.CATEGORY_LABELS[category]}")
+        for converter in group:
+            mark = " " if converter.available else "!"
+            accepts = ", ".join(converter.src_exts[:6])
+            if len(converter.src_exts) > 6:
+                accepts += ", ..."
+            print(f"  {mark} {converter.id:<24}{converter.label:<32}da: {accepts}")
+            if not converter.available:
+                print(f"      -> {converter.unavailable_reason}")
+    print()
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="xfatools",
@@ -214,6 +297,32 @@ def build_parser() -> argparse.ArgumentParser:
     p_info = sub.add_parser("info", help="mostra cosa contiene un PDF")
     add_common(p_info)
     p_info.set_defaults(func=cmd_info)
+
+    p_convert = sub.add_parser("convert", help="converti file in un altro formato")
+    p_convert.add_argument("files", nargs="+", help="uno o piu' file da convertire")
+    p_convert.add_argument(
+        "-t",
+        "--to",
+        required=True,
+        metavar="CONVERTITORE",
+        help="id della conversione, come elencato da 'xfatools formats'",
+    )
+    p_convert.add_argument(
+        "-x",
+        "--option",
+        action="append",
+        metavar="CHIAVE=VALORE",
+        help="opzione del convertitore, ripetibile (es. -x dpi=300 -x quality=80)",
+    )
+    p_convert.add_argument("-o", "--output", help="cartella di destinazione")
+    p_convert.add_argument("-q", "--quiet", action="store_true", help="non stampare l'avanzamento")
+    p_convert.set_defaults(func=cmd_convert)
+
+    p_formats = sub.add_parser("formats", help="elenca le conversioni disponibili")
+    p_formats.add_argument(
+        "files", nargs="*", help="se indicati, mostra solo cio' che vale per tutti"
+    )
+    p_formats.set_defaults(func=cmd_formats)
 
     p_doctor = sub.add_parser("doctor", help="elenca i componenti disponibili")
     p_doctor.set_defaults(func=cmd_doctor)

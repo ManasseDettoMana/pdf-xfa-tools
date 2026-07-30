@@ -28,10 +28,17 @@ CancelFn = Callable[[], bool]
 
 @dataclass
 class JobContext:
-    """Progress and cancellation plumbing handed to core operations."""
+    """Progress and cancellation plumbing handed to core operations.
+
+    ``metadata`` is a per-job scratch space: a handler that learns something the
+    caller should report - which extraction strategy actually ran, say - leaves
+    it here instead of widening the handler signature.  Because every job gets
+    its own context, this stays thread-safe.
+    """
 
     on_progress: ProgressFn | None = None
     is_cancelled: CancelFn | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def progress(self, completed: int, total: int = 0, message: str = "") -> None:
         if self.on_progress is not None:

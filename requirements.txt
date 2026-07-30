@@ -25,6 +25,9 @@ mammoth>=1.6          # docx -> html
 markdown>=3.5         # md -> html
 reportlab>=4.0        # pure-Python PDF writing (fallback renderer)
 
+markdownify>=0.13     # html -> markdown
+
 # --- Optional extras (the app degrades gracefully without them) ---
 # pytesseract>=0.3.10 # OCR; also needs the Tesseract binary installed
 # pillow-heif>=0.15   # HEIC/HEIF image support
+# pywin32>=306        # Windows only: DOCX -> PDF through an installed Word
