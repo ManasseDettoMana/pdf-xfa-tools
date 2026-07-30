@@ -5,7 +5,8 @@ description = "XFA Studio - desktop toolkit for extracting XML from PDF forms an
 readme = "README.md"
 requires-python = ">=3.10"
 authors = [{ name = "ManasseDettoMana" }]
-license = { text = "MIT" }
+# No licence is declared: this repository is a fork of an upstream project that
+# never carried a licence file, so one cannot be asserted here. See README.
 
 [project.scripts]
 xfatools = "xfatools.cli:main"

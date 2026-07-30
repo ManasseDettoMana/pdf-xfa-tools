@@ -73,6 +73,12 @@ These are not style preferences; breaking them produces wrong behaviour or misle
 8. `unwrap_datasets()` is deliberately textual, not DOM-based. Re-serialising
    through a parser reflows whitespace and breaks LiveCycle Designer. Do not
    "improve" it into an lxml transform.
+9. **The frozen executable enters through `build/entry.py`, not
+   `xfatools/__main__.py`.** PyInstaller runs its entry script as top-level
+   `__main__` with no package context, so `__main__.py`'s relative imports fail
+   inside the bundle and the app exits instantly with code 1. `entry.py` uses
+   absolute imports and logs any startup exception, because a windowed build has
+   no console and a silent exit is undiagnosable.
 
 ## Conventions
 

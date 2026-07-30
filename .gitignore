@@ -9,7 +9,9 @@ __pycache__/
 venv/
 env/
 
-# Build artifacts
+# Build artifacts. Note build/ itself is tracked: it holds the spec, the build
+# script, the icon and its generator.
+build/_work/
 build/dist/
 dist/
 *.manifest

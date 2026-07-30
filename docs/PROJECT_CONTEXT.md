@@ -6,9 +6,9 @@ phase, and before stopping for any reason.
 
 - **Branch:** `feature/desktop-app` (from `master`)
 - **Remote:** https://github.com/ManasseDettoMana/pdf-xfa-tools
-- **Last updated:** 2026-07-30, end of Phase 3
-- **Status:** Phases 1-3 complete, 104 tests green. Phase 5 (packaging) is next;
-  Phase 4 was largely absorbed into Phase 3.
+- **Last updated:** 2026-07-30, end of Phase 5
+- **Status:** Phases 1-5 complete, 104 tests green, `dist\XfaStudio.exe` builds
+  and launches. Phase 6 (docs, CI, PR) in progress.
 
 ---
 
@@ -44,6 +44,9 @@ GitHub. No emojis anywhere. Best practices throughout.
       every string hardcoded and converting later is wasteful and reliably
       misses strings, so `tr()` and the theme went in from the first widget.
       Remaining for a later pass: XML preview pane, toast notifications.
+- [x] **Phase 5 - packaging** (PyInstaller one-file .exe, icon, build script)
+- [ ] **Phase 6 - docs, CI, release** (README and ARCHITECTURE written, CI and
+      release workflows written, PR still to open)
 - [ ] **Phase 5 - packaging** (PyInstaller one-file .exe)
 - [ ] **Phase 6 - docs, CI, release** (README, Actions, PR)
 
@@ -128,6 +131,30 @@ Three bugs found and fixed during this phase, all worth remembering:
    explicitly transparent, and plain container widgets inside a card use
    `objectName="PanelBody"`.
 
+## What exists after Phase 5
+
+`build\build.ps1` produces `dist\XfaStudio.exe`, a single windowed executable of
+roughly 100 MB. It gates on the test suite unless `-SkipTests` is passed, cleans
+previous output and reports the final size. `build/make_icon.py` draws
+`build/icon.ico` so the mark is reviewable in the diff rather than an opaque
+binary from a design tool.
+
+The first build produced an executable that exited instantly with code 1. Cause:
+PyInstaller runs its entry script as top-level `__main__` with no package
+context, so the relative import in `xfatools/__main__.py`
+(`from .gui.app import run`) failed inside the bundle. The frozen build now
+enters through `build/entry.py`, which uses absolute imports only. `python -m
+xfatools` still goes through `__main__.py`.
+
+Because a windowed build has no console, that failure was completely silent -
+stderr goes nowhere. `entry.py` now writes any startup exception to
+`%APPDATA%/XfaStudio/startup-error.log` and shows a message box, so the next
+such failure is diagnosable instead of invisible.
+
+The `excludes` list in the spec is load-bearing, not cosmetic: pandas and
+matplotlib arrive through pdfplumber's optional extras and magika/onnxruntime
+through markitdown, none of which any converter uses.
+
 ## Environment notes
 
 - Python 3.13.14, PySide6 6.11.1.
@@ -139,16 +166,21 @@ Three bugs found and fixed during this phase, all worth remembering:
 
 ## Next step
 
-Phase 5, packaging:
+Finish Phase 6: open the pull request against `master`.
 
-1. `build/xfatools.spec` - one-file windowed PyInstaller build. Exclude
-   `matplotlib`, `pandas`, `magika`, `onnxruntime` and the unused Qt modules
-   (`QtWebEngine`, `QtQuick`, `Qt3D`, `QtMultimedia`), or the executable is
-   needlessly large.
-2. `build/build.ps1` - wraps it, cleans previous output, prints the final size.
-3. Smoke-test `dist\XfaStudio.exe` from a shell with no Python on `PATH`.
+Then, in rough priority order, the things deliberately left out so far:
 
-Then Phase 6: rewrite the README, add the CI and release workflows, open the PR.
+1. **XML preview pane** in the result panel, with syntax highlighting. The
+   result panel currently lists output file names only.
+2. **An inject flow in the GUI.** `core/inject.py` and the CLI both support
+   writing an edited XML back into a PDF; the interface does not expose it yet.
+3. **Toast notifications** instead of the footer status label.
+4. **Template-aware extraction** - the fourth option the user was offered in
+   planning and did not pick: match reconstructed text against a known XFA
+   template from `decos/` so a flattened form yields field names matching the
+   original. This is the only way heuristic output would ever approach EXACT.
+5. Verify the `.exe` on a machine with no Python at all. It has only been run on
+   the build machine so far, which cannot prove independence.
 
 Testing note: GUI tests run under `QT_QPA_PLATFORM=offscreen`, which has no
 system fonts. That is fine for assertions but renders text as empty boxes in
@@ -157,6 +189,13 @@ you need a readable capture.
 
 ## Open questions
 
-None blocking. Worth confirming with the user eventually:
+- **Licence.** No licence file has ever existed in this repository, and it is a
+  fork of an upstream project. `pyproject.toml` briefly claimed MIT during
+  Phase 6; that was an invention and has been removed. The user needs to decide
+  this before the `.exe` is distributed outside their own team.
 - Should the app offer to install LibreOffice/Tesseract, or only link to them?
   (Currently: link only, via the Diagnostics panel.)
+- OCR and high-fidelity office conversion have never been executed anywhere:
+  neither Tesseract nor LibreOffice is installed on the development machine, and
+  the CI runner does not have them either. That code is written and its error
+  paths are tested, but its success path is unverified.
