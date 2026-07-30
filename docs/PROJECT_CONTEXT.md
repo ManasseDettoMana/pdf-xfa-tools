@@ -6,8 +6,9 @@ phase, and before stopping for any reason.
 
 - **Branch:** `feature/desktop-app` (from `master`)
 - **Remote:** https://github.com/ManasseDettoMana/pdf-xfa-tools
-- **Last updated:** 2026-07-30, end of Phase 2
-- **Status:** Phases 1 and 2 complete, 72 tests green. Phase 3 (GUI shell) is next.
+- **Last updated:** 2026-07-30, end of Phase 3
+- **Status:** Phases 1-3 complete, 104 tests green. Phase 5 (packaging) is next;
+  Phase 4 was largely absorbed into Phase 3.
 
 ---
 
@@ -38,8 +39,11 @@ GitHub. No emojis anywhere. Best practices throughout.
 
 - [x] **Phase 1 - skeleton and core extraction**
 - [x] **Phase 2 - conversion engine** (registry, images, pdfops, documents)
-- [ ] **Phase 3 - GUI shell** (drop zone, queue, workers, settings)
-- [ ] **Phase 4 - theme, i18n, polish** (QSS, live IT/EN, diagnostics, badges)
+- [x] **Phase 3 - GUI shell** (drop zone, queue, workers, settings)
+- [x] **Phase 4 - theme, i18n, polish** - pulled forward into Phase 3. Writing
+      every string hardcoded and converting later is wasteful and reliably
+      misses strings, so `tr()` and the theme went in from the first widget.
+      Remaining for a later pass: XML preview pane, toast notifications.
 - [ ] **Phase 5 - packaging** (PyInstaller one-file .exe)
 - [ ] **Phase 6 - docs, CI, release** (README, Actions, PR)
 
@@ -91,6 +95,39 @@ Two design corrections made while building this phase, both worth keeping:
    path. That is shared mutable state and would race once several worker threads
    run. It now rides on `JobContext.metadata`, which is per job.
 
+## What exists after Phase 3
+
+A working desktop application: `python -m xfatools`.
+
+- `gui/theme.py` - one `Palette` dataclass generates the entire stylesheet, so
+  light and dark cannot drift apart. Widgets opt into a role via `objectName` or
+  a dynamic property; `restyle()` repolishes after a property change.
+- `gui/i18n.py` + `translations.py` - both catalogs in one file, live switching
+  through a `language_changed` signal and a `retranslate()` method per widget.
+- `gui/workers.py` - `QThreadPool`, one runnable per job, cooperative cancel.
+- `gui/widgets/` - drop zone (files and folders, recursive, deduped), queue
+  table with a per-row target format, generic options panel built from the
+  registry, result panel with the provenance badge, diagnostics dialog.
+
+Verified headless, end to end: four XFA forms convert with a green EXACT badge
+while the 1345-page spec PDF falls through to an amber HEURISTIC badge in the
+same batch.
+
+Three bugs found and fixed during this phase, all worth remembering:
+
+1. `WorkerSignals` had no Qt parent. Workers hold it across threads, so it could
+   be destroyed mid-run: "Signal source has been deleted". Always parent it, and
+   `runner.shutdown()` now runs on close unconditionally, because probe workers
+   are not part of a batch and "not running" does not mean the pool is idle.
+2. `JobRunner.cancel()` called `pool.clear()`. Dropped runnables never emit
+   `finished`, so the batch could never complete and the UI stayed stuck on
+   "running". Cancellation now lets every job start and return immediately via
+   an early `ctx.check_cancelled()` in `run_job`.
+3. The blanket `QWidget { background-color }` rule painted every `QLabel`,
+   putting grey bands behind all text on cards. Labels and check boxes are now
+   explicitly transparent, and plain container widgets inside a card use
+   `objectName="PanelBody"`.
+
 ## Environment notes
 
 - Python 3.13.14, PySide6 6.11.1.
@@ -102,19 +139,21 @@ Two design corrections made while building this phase, both worth keeping:
 
 ## Next step
 
-Start Phase 3, the GUI shell:
+Phase 5, packaging:
 
-1. `gui/workers.py` - a `QRunnable` per job wrapping `registry.run_job`, adapting
-   `JobContext` callbacks to Qt signals. Concurrency `min(4, cpu_count)`.
-2. `gui/main_window.py` - header, drop zone, queue table, options panel, footer.
-3. `gui/widgets/dropzone.py` - accepts files and folders, recursive, filtered by
-   `registry.supported_input_exts()`, deduped.
-4. `gui/settings.py` - JSON in `%APPDATA%/xfatools/`.
+1. `build/xfatools.spec` - one-file windowed PyInstaller build. Exclude
+   `matplotlib`, `pandas`, `magika`, `onnxruntime` and the unused Qt modules
+   (`QtWebEngine`, `QtQuick`, `Qt3D`, `QtMultimedia`), or the executable is
+   needlessly large.
+2. `build/build.ps1` - wraps it, cleans previous output, prints the final size.
+3. Smoke-test `dist\XfaStudio.exe` from a shell with no Python on `PATH`.
 
-A mixed selection (say a PDF and a PNG) has no shared conversion, so the queue
-must hold a target format **per row**, defaulted from each file's type, rather
-than one global dropdown. `registry.common_targets()` exists for the case where
-the user multi-selects rows and sets them at once.
+Then Phase 6: rewrite the README, add the CI and release workflows, open the PR.
+
+Testing note: GUI tests run under `QT_QPA_PLATFORM=offscreen`, which has no
+system fonts. That is fine for assertions but renders text as empty boxes in
+screenshots - load `C:/Windows/Fonts/segoeui.ttf` via `QFontDatabase` first if
+you need a readable capture.
 
 ## Open questions
 

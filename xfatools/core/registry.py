@@ -524,6 +524,11 @@ def run_job(job: Job, ctx: JobContext = NULL_CONTEXT) -> JobResult:
 
     try:
         with timer:
+            # Checked before any work: a cancelled batch still has every queued
+            # job run, and each one must return here almost immediately so the
+            # batch finishes promptly and nothing is left unreported.
+            ctx.check_cancelled()
+
             if not job.source.exists():
                 raise ConversionError(f"File non trovato: {job.source}")
 
